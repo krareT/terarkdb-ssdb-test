@@ -221,14 +221,15 @@ void test_delete(ssdb::Client* const client, const char* filename) {
     printf("key size : %d\n", int(keys.size()));
     int i = 0;
     ssdb::Status status;
-    for(auto key: keys) {
+    for(std::string key: keys) {
         status = client->del(key);
-        if(status.not_found()) {
+        if(!status.ok()) {
             printf("request key is not found, break loop!\n");
             break;
         }
-        if(i++ % 1000 == 0) {
+        if(i++ % 10000 == 0) {
             printf("deleted : %d\n", i);
+            fflush(stdout);
         }
     }
 }
@@ -244,15 +245,21 @@ void test_expire(ssdb::Client* const client, const char* filename) {
     printf("key size : %d\n", int(keys.size()));
     int i = 0;
     const std::vector<std::string>* ret;
-    for(auto key: keys) {
+    for(std::string key: keys) {
         // 设置key5秒后过期
         ret = client->request("expire", key, "5");
         if(ret->front().compare("not_found") != 0) {
             printf("key not found, break.\n");
             break;
         }
-        if(i++ % 1000 == 0) {
+        if(i++ % 10000 == 0) {
             printf("deleted : %d\n", i);
+            fflush(stdout);
         }
     }
+}
+
+// 查询数据库的状态
+void test_status(ssdb::Client* const client, const char* filename) {
+    
 }

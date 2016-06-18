@@ -29,4 +29,6 @@ void test_delete(ssdb::Client* const client, const char* filename);
 
 void test_expire(ssdb::Client* const client, const char* filename);
 
+void test_status(ssdb::Client* const client, const char* filename);
+
 #endif /* multi_set_h */
