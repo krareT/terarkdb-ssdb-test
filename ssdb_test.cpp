@@ -223,6 +223,7 @@ void test_delete(ssdb::Client* const client, const char* filename) {
     ssdb::Status status;
     for(std::string key: keys) {
         status = client->del(key);
+        // 无法触发，因为SSDB的C++ API的delete找不到key也返回ok
         if(!status.ok()) {
             printf("request key is not found, break loop!\n");
             break;
@@ -248,6 +249,7 @@ void test_expire(ssdb::Client* const client, const char* filename) {
     for(std::string key: keys) {
         // 设置key5秒后过期
         ret = client->request("expire", key, "5");
+        // 无法触发，因为SSDB的C++ API的delete找不到key也返回ok
         if(ret->front().compare("not_found") == 0) {
             printf("key not found, break.\n");
             break;
@@ -259,7 +261,7 @@ void test_expire(ssdb::Client* const client, const char* filename) {
     }
 }
 
-// 查询数据库的状态
+// 尝试API返回的状态
 void test_status(ssdb::Client* const client, const char* filename) {
     ssdb::Status status = client->set("test_key", "test_val");
     printf("set status code : %s\n", status.code().c_str());
@@ -271,5 +273,12 @@ void test_status(ssdb::Client* const client, const char* filename) {
     status = client->get("test_key_not_found", &val);
     printf("get failure status code : %s\n", status.code().c_str());
     
+    status = client->del("test_key_not_found");
+    printf("del failure status code : %s\n", status.code().c_str());
     
+    status = client->request("expire", "test_key", "10");
+    printf("expire success status code : %s\n", status.code().c_str());
+    
+    status = client->request("expire", "test_key_not_found", "10");
+    printf("expire failure status code : %s\n", status.code().c_str());
 }
