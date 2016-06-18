@@ -105,6 +105,24 @@ void test_multi_set(ssdb::Client* const client, const char* filename) {
     printf("total records = %ld\n", keys.size());
     printf("read time : %Lf, ops : %Lf\n",
            (time_end - time_start), keys.size() / (time_end - time_start));
+    
+    // 完成set后，进行一下正确性测试
+    printf("test multi-set correction:\n");
+    key_it = keys.begin();
+    val_it = values.begin();
+    std::string val;
+    i = 0;
+    while (key_it != keys.end() && val_it != values.end()) {
+        client->get(*key_it, &val);
+        assert((*val_it).compare(val) == 0);
+        ++key_it;
+        ++val_it;
+        ++i;
+        if(i%100000 == 0) {
+            printf("tested records = %d\r", i);
+            fflush(stdout);
+        }
+    }
 }
 
 
@@ -228,12 +246,11 @@ void test_delete(ssdb::Client* const client, const char* filename) {
         if(status.ok() && !val.empty()) {
             client->del(key);
             if(j++ % 10000 == 0){
-                printf("\t deleted : %d\r", j);
+                printf("\t deleted : %d\n", j);
             }
         }
         if(i++ % 10000 == 0) {
-            printf("try : %d\r", i);
-            fflush(stdout);
+            printf("tried : %d\n", i);
         }
     }
 }
