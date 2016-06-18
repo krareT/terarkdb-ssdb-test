@@ -221,12 +221,11 @@ void test_delete(ssdb::Client* const client, const char* filename) {
     printf("key size : %d\n", int(keys.size()));
     int i = 0;
     ssdb::Status status;
+    std::string val;
     for(std::string key: keys) {
-        status = client->del(key);
-        // 无法触发，因为SSDB的C++ API的delete找不到key也返回ok
-        if(!status.ok()) {
-            printf("request key is not found, break loop!\n");
-            break;
+        status = client->get(key, &val);
+        if(status.ok() && !val.empty()) {
+            client->del(key);
         }
         if(i++ % 10000 == 0) {
             printf("deleted : %d\n", i);
