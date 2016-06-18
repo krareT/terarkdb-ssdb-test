@@ -17,7 +17,7 @@ int main(int argc, const char** argv) {
     const char* command = argv[1];
     const char* filepath = argv[2];
     if(command == NULL || filepath == NULL) {
-        printf("usage : ./ssdb-benchmark [mset|mget|delete|expire] [movie_file_path]\n");
+        printf("usage : ./ssdb-benchmark [mset|msettest|mget|delete|expire] [movie_file_path]\n");
         printf("mget env : SSDB_PORT(default 8888) | MGET_AMOUNT(default 7000000) | MGET_SIZE(default 100)\n");
         exit(0);
     }
@@ -43,6 +43,9 @@ int main(int argc, const char** argv) {
     }
     if( strcmp(command, "mset") == 0) {
         test_multi_set(client, filepath);
+    }
+    if( strcmp(command, "msettest") == 0) {
+        test_multi_set_test(client, filepath);
     }
     if( strcmp(command, "mget") == 0) {
         test_multi_get(client, filepath, mget_amount, mget_size);

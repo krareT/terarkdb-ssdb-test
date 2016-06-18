@@ -105,16 +105,25 @@ void test_multi_set(ssdb::Client* const client, const char* filename) {
     printf("total records = %ld\n", keys.size());
     printf("read time : %Lf, ops : %Lf\n",
            (time_end - time_start), keys.size() / (time_end - time_start));
-    
+}
+
+void test_multi_set_test(ssdb::Client* const client, const char* filename) {
     // 完成set后，进行一下正确性测试
     printf("test multi-set correction:\n");
-    key_it = keys.begin();
-    val_it = values.begin();
+    // 数组分别存储key和value
+    std::vector<std::string> keys;
+    std::vector<std::string> values;
+    loadRawFile(filename, &keys, &values);
+    
+    auto key_it = keys.begin();
+    auto val_it = values.begin();
     std::string val;
-    i = 0;
+    int i = 0;
     while (key_it != keys.end() && val_it != values.end()) {
         client->get(*key_it, &val);
-        assert((*val_it).compare(val) == 0);
+        if((*val_it).compare(val) != 0) {
+            printf("test fail : real_val = %s, ssdb_val = %s\n", (*val_it).c_str(), val.c_str());
+        }
         ++key_it;
         ++val_it;
         if(++i % 100000 == 0) {
