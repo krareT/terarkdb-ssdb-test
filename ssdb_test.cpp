@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <cstring>
 #include <map>
 #include <ctime>
 #include <assert.h>
@@ -209,21 +210,49 @@ void test_multi_get(ssdb::Client* const client, const char* filename, int mget_a
 }
 
 
-// 测试ttl
+// 测试delete
 void test_delete(ssdb::Client* const client, const char* filename) {
     // 数组分别存储key和value
     std::vector<std::string> keys;
     std::vector<std::string> values;
     loadRawFile(filename, &keys, &values);
     printf("data loaded\n");
-
-    printf("key size : %d\n", keys.size());
+    
+    printf("key size : %d\n", int(keys.size()));
     int i = 0;
+    ssdb::Status status;
     for(auto key: keys) {
-        client->del(key);
+        status = client->del(key);
+        if(status.not_found()) {
+            printf("request key is not found, break loop!\n");
+            break;
+        }
         if(i++ % 1000 == 0) {
             printf("deleted : %d\n", i);
         }
     }
 }
 
+// 测试expire
+void test_expire(ssdb::Client* const client, const char* filename) {
+    // 数组分别存储key和value
+    std::vector<std::string> keys;
+    std::vector<std::string> values;
+    loadRawFile(filename, &keys, &values);
+    printf("data loaded\n");
+    
+    printf("key size : %d\n", int(keys.size()));
+    int i = 0;
+    const std::vector<std::string>* ret;
+    for(auto key: keys) {
+        // 设置key5秒后过期
+        ret = client->request("expire", key, "5");
+        if(ret->front().compare("not_found") != 0) {
+            printf("key not found, break.\n");
+            break;
+        }
+        if(i++ % 1000 == 0) {
+            printf("deleted : %d\n", i);
+        }
+    }
+}
