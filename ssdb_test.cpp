@@ -248,12 +248,12 @@ void test_expire(ssdb::Client* const client, const char* filename) {
     for(std::string key: keys) {
         // 设置key5秒后过期
         ret = client->request("expire", key, "5");
-        if(ret->front().compare("not_found") != 0) {
+        if(ret->front().compare("not_found") == 0) {
             printf("key not found, break.\n");
             break;
         }
         if(i++ % 10000 == 0) {
-            printf("deleted : %d\n", i);
+            printf("expire set : %d\n", i);
             fflush(stdout);
         }
     }
@@ -261,5 +261,15 @@ void test_expire(ssdb::Client* const client, const char* filename) {
 
 // 查询数据库的状态
 void test_status(ssdb::Client* const client, const char* filename) {
+    ssdb::Status status = client->set("test_key", "test_val");
+    printf("set status code : %s\n", status.code().c_str());
+    
+    std::string val;
+    status = client->get("test_key", &val);
+    printf("get success status value and code : %s , %s\n", val.c_str(), status.code().c_str());
+    
+    status = client->get("test_key_not_found", &val);
+    printf("get failure status code : %s\n", status.code().c_str());
+    
     
 }
