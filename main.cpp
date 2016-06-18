@@ -38,6 +38,9 @@ int main(int argc, const char** argv) {
     
     ssdb::Client* client = ssdb::Client::connect("127.0.0.1", port);
     
+    if( strcmp(command, "status") == 0) {
+        test_status(client, filepath);
+    }
     if( strcmp(command, "mset") == 0) {
         test_multi_set(client, filepath);
     }
@@ -50,6 +53,7 @@ int main(int argc, const char** argv) {
     if( strcmp(command, "expire") == 0) {
         test_expire(client, filepath);
     }
+    
     
     delete client;
     client = nullptr;
