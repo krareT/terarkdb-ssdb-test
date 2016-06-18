@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <limits.h>
 
-// Mac系统不支持clock_gettime
+// Mac系统需要自定义clock_gettime
 #ifdef __APPLE__
 #include <mach/mach_time.h>
 #define CLOCK_REALTIME 0
@@ -117,8 +117,7 @@ void test_multi_set(ssdb::Client* const client, const char* filename) {
         assert((*val_it).compare(val) == 0);
         ++key_it;
         ++val_it;
-        ++i;
-        if(i%100000 == 0) {
+        if(++i % 100000 == 0) {
             printf("tested records = %d\r", i);
             fflush(stdout);
         }
@@ -246,11 +245,11 @@ void test_delete(ssdb::Client* const client, const char* filename) {
         if(status.ok() && !val.empty()) {
             client->del(key);
             if(j++ % 10000 == 0){
-                printf("\t deleted : %d\n", j);
+                printf("deleted : %d\n", j);
             }
         }
         if(i++ % 10000 == 0) {
-            printf("tried : %d\n", i);
+            printf("\t tried : %d\n", i);
         }
     }
 }
