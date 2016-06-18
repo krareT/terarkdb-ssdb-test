@@ -119,10 +119,11 @@ void test_multi_set_test(ssdb::Client* const client, const char* filename) {
     auto val_it = values.begin();
     std::string val;
     int i = 0;
+    ssdb::Status status;
     while (key_it != keys.end() && val_it != values.end()) {
-        client->get(*key_it, &val);
-        if((*val_it).compare(val) != 0) {
-            printf("test fail : real_val = %s, ssdb_val = %s\n", (*val_it).c_str(), val.c_str());
+        status = client->get(*key_it, &val);
+        if(!status.ok()) {
+            printf("test fail, key = %s, \r\t value = %s\n", (*key_it).c_str(), val.c_str());
         }
         ++key_it;
         ++val_it;
