@@ -25,6 +25,6 @@ void test_multi_set(ssdb::Client* const client, const char* filename);
 
 void test_multi_get(ssdb::Client* const client, const char* filename, int mget_amount, int mget_size);
 
-void test_ttl(ssdb::Client* const client, const char* filename);
+void test_delete(ssdb::Client* const client, const char* filename);
 
 #endif /* multi_set_h */

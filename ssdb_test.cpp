@@ -41,12 +41,8 @@ bool Review::validOrErase() {
     return false;
 }
 
-void test_multi_set(ssdb::Client* const client, const char* filename) {
-    std::cout<<"test multi set"<<std::endl;
-    // 数组分别存储key和value
-    std::vector<std::string> keys;
-    std::vector<std::string> values;
-    
+// 把原始文件读成key和value的组合
+void loadRawFile(const char* filename, std::vector<std::string>* keys, std::vector<std::string>* values) {
     // 逐行遍历原始文件
     Review* review = new Review();
     std::fstream infile(filename);
@@ -61,12 +57,22 @@ void test_multi_set(ssdb::Client* const client, const char* filename) {
             review->review = line;
             // 到最末尾验证一下记录是否填满
             if(review->validOrErase()) {
-                keys.push_back(review->userId.append(review->productId));
-                values.push_back(review->review);
+                keys->push_back(review->userId.append(review->productId));
+                values->push_back(review->review);
             }
         }
     }
-    assert(keys.size() == values.size());
+    assert(keys->size() == values->size());
+}
+
+
+void test_multi_set(ssdb::Client* const client, const char* filename) {
+    std::cout<<"test multi set"<<std::endl;
+    // 数组分别存储key和value
+    std::vector<std::string> keys;
+    std::vector<std::string> values;
+    loadRawFile(filename, &keys, &values);
+    
     
     // 执行测试
     const long double time_start = time(0);
@@ -203,14 +209,15 @@ void test_multi_get(ssdb::Client* const client, const char* filename, int mget_a
 }
 
 
-// 测试TTL
-void test_ttl(ssdb::Client* const client, const char* filename) {
-    // 先进性multi-set操作，把所有数据灌进去
-    test_multi_set(client, filename);
-    // 通过ssdb的接口取出所有的key，进行expire操作
+// 测试ttl
+void test_delete(ssdb::Client* const client, const char* filename) {
+    // 数组分别存储key和value
     std::vector<std::string> keys;
-    client->keys("", "", LONG_MAX, &keys);
-    // 先试一下delete操作
+    std::vector<std::string> values;
+    loadRawFile(filename, &keys, &values);
+    printf("data loaded\n");
+
+    printf("key size : %d\n", keys.size());
     int i = 0;
     for(auto key: keys) {
         client->del(key);

@@ -44,8 +44,8 @@ int main(int argc, const char** argv) {
     if( strcmp(command, "mget") == 0) {
         test_multi_get(client, filepath, mget_amount, mget_size);
     }
-    if( strcmp(command, "ttl") == 0) {
-        test_ttl(client, filepath);
+    if( strcmp(command, "delete") == 0) {
+        test_delete(client, filepath);
     }
     
     delete client;
