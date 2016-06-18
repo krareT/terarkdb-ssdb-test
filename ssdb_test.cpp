@@ -219,16 +219,20 @@ void test_delete(ssdb::Client* const client, const char* filename) {
     printf("data loaded\n");
     
     printf("key size : %d\n", int(keys.size()));
-    int i = 0;
+    int i,j = 0;
     ssdb::Status status;
     std::string val;
     for(std::string key: keys) {
+        // 只有存在的key，才尝试删除
         status = client->get(key, &val);
         if(status.ok() && !val.empty()) {
             client->del(key);
+            if(j++ % 10000 == 0){
+                printf("\t deleted : %d\r", j);
+            }
         }
         if(i++ % 10000 == 0) {
-            printf("deleted : %d\n", i);
+            printf("try : %d\r", i);
             fflush(stdout);
         }
     }
@@ -254,7 +258,7 @@ void test_expire(ssdb::Client* const client, const char* filename) {
             break;
         }
         if(i++ % 10000 == 0) {
-            printf("expire set : %d\n", i);
+            printf("expire set : %d\r", i);
             fflush(stdout);
         }
     }
