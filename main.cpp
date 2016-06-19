@@ -18,7 +18,7 @@ int main(int argc, const char** argv) {
     const char* filepath = argv[2];
     if(command == NULL || filepath == NULL) {
         printf("usage : ./ssdb-benchmark [mset|msettest|mget|delete|expire] [movie_file_path]\n");
-        printf("mget env : SSDB_PORT(default 8888) | MGET_AMOUNT(default 7000000) | MGET_SIZE(default 100) | DEL_AMOUNT(default 7000000)\n");
+        printf("mget env : SSDB_PORT(default 8888) | MGET_AMOUNT(default 7000000) | MGET_SIZE(default 100) | DEL_AMOUNT(default 7000000) | EXPIRE_AMOUNT(default 7000000)\n");
         exit(0);
     }
 
@@ -26,6 +26,9 @@ int main(int argc, const char** argv) {
     int mget_amount = 7000000;
     int mget_size = 100;
     int del_amount = 7000000;
+    int expire_amount = 7000000;
+    
+    ssdb::Client* client = ssdb::Client::connect("127.0.0.1", port);
     
     if(const char* env_port = getenv("SSDB_PORT")) {
         port = atoi(env_port);
@@ -39,8 +42,10 @@ int main(int argc, const char** argv) {
     if(const char* env_del_amount = getenv("DEL_AMOUNT")) {
         del_amount = atoi(env_del_amount);
     }
+    if(const char* env_expire_amount = getenv("EXPIRE_AMOUNT")) {
+        expire_amount = atoi(env_expire_amount);
+    }
     
-    ssdb::Client* client = ssdb::Client::connect("127.0.0.1", port);
     
     if( strcmp(command, "status") == 0) {
         test_status(client, filepath);
@@ -58,9 +63,8 @@ int main(int argc, const char** argv) {
         test_delete(client, filepath, del_amount);
     }
     if( strcmp(command, "expire") == 0) {
-        test_expire(client, filepath);
+        test_expire(client, filepath, expire_amount);
     }
-    
     
     delete client;
     client = nullptr;

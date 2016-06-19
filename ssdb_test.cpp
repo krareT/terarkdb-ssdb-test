@@ -267,7 +267,7 @@ void test_delete(ssdb::Client* const client, const char* filename, int del_amoun
 }
 
 // 测试expire
-void test_expire(ssdb::Client* const client, const char* filename) {
+void test_expire(ssdb::Client* const client, const char* filename, int expire_amount) {
     // 数组分别存储key和value
     std::vector<std::string> keys;
     std::vector<std::string> values;
@@ -275,18 +275,13 @@ void test_expire(ssdb::Client* const client, const char* filename) {
     printf("data loaded\n");
     
     printf("key size : %d\n", int(keys.size()));
-    int i = 0;
-    const std::vector<std::string>* ret;
-    for(std::string key: keys) {
-        // 设置key5秒后过期
-        ret = client->request("expire", key, "5");
-        // 无法触发，因为SSDB的C++ API的delete找不到key也返回ok
-        if(ret->front().compare("not_found") == 0) {
-            printf("key not found, break.\n");
-            break;
-        }
-        if(i++ % 10000 == 0) {
-            printf("expire set : %d\r", i);
+    int size = keys.size();
+    
+    while(expire_amount-- > 0) {
+        int index = lrand48() % size;
+        client->request("expire", keys[index], "10");
+        if( expire_amount % 10000 == 0) {
+            printf("expire amount reminds : %d\r", expire_amount);
             fflush(stdout);
         }
     }

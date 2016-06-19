@@ -29,7 +29,7 @@ void test_multi_get(ssdb::Client* const client, const char* filename, int mget_a
 
 void test_delete(ssdb::Client* const client, const char* filename, int del_amount);
 
-void test_expire(ssdb::Client* const client, const char* filename);
+void test_expire(ssdb::Client* const client, const char* filename, int expire_amount);
 
 void test_status(ssdb::Client* const client, const char* filename);
 
