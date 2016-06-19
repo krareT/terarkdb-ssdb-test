@@ -167,7 +167,7 @@ void test_multi_get(ssdb::Client* const client, const char* filename, int mget_a
         return x.first < y.first;
     });
     
-    // 执行测试
+    // 执行测试, 随机读取, 允许重复读
     printf("data loaded[size = %ld], start test...\n", kv.size());
     struct timespec t0, t1;
     std::vector<std::string> data;
@@ -238,7 +238,8 @@ void test_multi_get(ssdb::Client* const client, const char* filename, int mget_a
 
 
 // 测试delete
-void test_delete(ssdb::Client* const client, const char* filename) {
+void test_delete(ssdb::Client* const client, const char* filename, int del_amount) {
+    printf("test delete\n");
     // 数组分别存储key和value
     std::vector<std::string> keys;
     std::vector<std::string> values;
@@ -246,20 +247,21 @@ void test_delete(ssdb::Client* const client, const char* filename) {
     printf("data loaded\n");
     
     printf("key size : %d\n", int(keys.size()));
-    int i,j = 0;
     ssdb::Status status;
     std::string val;
-    for(std::string key: keys) {
+    int size = keys.size();
+    
+    while(del_amount-- > 0) {
+        // 随机删除一个key，可以重复删除
+        int index = lrand48() % size;
+        status = client->get(keys[index], &val);
         // 只有存在的key，才尝试删除
-        status = client->get(key, &val);
         if(status.ok() && !val.empty()) {
-            client->del(key);
-            if(j++ % 10000 == 0){
-                printf("deleted : %d\n", j);
-            }
+            client->del(keys[index]);
         }
-        if(i++ % 10000 == 0) {
-            printf("\t tried : %d\n", i);
+        if( del_amount % 10000 == 0) {
+            printf("delete amount reminds : %d\r", del_amount);
+            fflush(stdout);
         }
     }
 }
