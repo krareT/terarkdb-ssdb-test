@@ -1,14 +1,7 @@
 CXX=g++
-OBJECTS=main.o ssdb_test.o libssdb-client.a
+OBJECTS= main.cpp pika_ssdb_client.cpp pika_ssdb_test.cpp libhiredis.a
 
 ssdb-benchmark: ${OBJECTS}
-	${CXX} -std=c++1y -o ssdb-benchmark ${OBJECTS}
-
-main.o: main.cpp ssdb_test.hpp
-	${CXX} -std=c++1y -o main.o -c main.cpp
-
-ssdb_test.o: ssdb_test.cpp ssdb_test.hpp SSDB_client.h
-	${CXX} -std=c++1y -o ssdb_test.o -c ssdb_test.cpp
-
+	${CXX} -g -std=c++1y -o ssdb-benchmark ${OBJECTS} 
 clean:
 	rm -rf *.o
