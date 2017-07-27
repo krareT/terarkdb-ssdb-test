@@ -1,3 +1,5 @@
 ssdb-benchmark
 libssdb-client.a
 a.out
+*~
+*.txt
