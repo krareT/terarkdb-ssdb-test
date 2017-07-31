@@ -21,6 +21,8 @@ int clock_gettime(int clk_id, struct timespec *t);
 #ifndef _PIKA_SSDB_CLIENT_H
 #define _PIKA_SSDB_CLIENT_H
 
+void loadRawFile(const char* filename, std::vector<std::string> *keys, std::vector<std::string>* values);
+void loadShufFile(const char* filename, std::vector<std::string> *keys);
 void test_set(Client *client,const char *filename); 
 void test_get(Client *client,const char *filename, int mget_amount, int mget_size); 
 void test_multi_set(Client *client,const char *filename); 
