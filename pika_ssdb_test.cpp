@@ -51,9 +51,9 @@ bool Review::validOrErase() {
 }
 
 // 读取shuff文件，只包含key
-void loadShufFile(const char* filename, std::vector<std::string>* keys) {
+void loadKeys(const char* filename, std::vector<std::string>* keys) {
     // 逐行遍历原始文件
-    std::fstream infile(filename);
+    std::ifstream infile(filename);
     assert(infile);
     std::string line;
 	int nSpos = 0;
@@ -66,7 +66,8 @@ void loadShufFile(const char* filename, std::vector<std::string>* keys) {
 void loadRawFile(const char* filename, std::vector<std::string>* keys, std::vector<std::string>* values) {
     // 逐行遍历原始文件
     Review* review = new Review();
-    std::fstream infile(filename);
+	printf("\n\n filename %s \n\n", filename);
+    std::ifstream infile(filename);
     assert(infile);
     std::string line;
     while(std::getline(infile, line)) {
@@ -118,119 +119,94 @@ void test_get(Client *client,const char *filename, int mget_amount, int mget_siz
 	// 考虑随机性
 	std::cout<<"II---------> test get, data init..."<<std::endl;
     std::vector<std::string> keys;
-    loadShufFile(filename, &keys);
-	auto key_it = keys.begin();
-        // 执行测试, 随机读取, 允许重复读
-        printf("data loaded[size = %ld], start test...\n", keys.size());
-        struct timespec t0, t1;
-        std::vector<size_t>  indexVec;
-	    std::string result;
-        size_t incorrect = 0;
-        size_t request_cnt = 0;
-        size_t response_cnt = 0;
-        size_t total_us = 0;
-	    for (size_t i =0; i<= mget_amount; ++i){		
-		    indexVec.resize(0);
-	        for(size_t j=0;j <mget_size; ++j){			
-			    int index = lrand48() % keys.size();
-			    indexVec.push_back(index);				
-		    }  	
-            std::sort(indexVec.begin(), indexVec.end());
-     	    indexVec.erase(std::unique(indexVec.begin(), indexVec.end()), indexVec.end());
-     	    std::random_shuffle(indexVec.begin(), indexVec.end());
-      	    // 每100条记录或者结束的时候，进行一组get操作
-      	    clock_gettime(CLOCK_MONOTONIC, &t0);
-            request_cnt += indexVec.size();			
-      	    for (size_t index: indexVec) {
-      	        client->get(keys[index], result);
-			    client->freeReply();
-			    if(!result.empty()){
-				    response_cnt += 1;
-			    }
-			    else{	
-				    incorrect +=1;
-			    }
-				result.clear();
-   	        }
-     	    clock_gettime(CLOCK_MONOTONIC, &t1);
-    	    total_us += (t1.tv_sec - t0.tv_sec) * 1000000LL + (t1.tv_nsec - t0.tv_nsec) / 1000LL;  
-      	    //result.resize(0);
-    	    //response_cnt += result.size()/2;
-		    if (i%1000 == 0){
-			    printf("get records = %zd\r", request_cnt);
-			    fflush(stdout);
-		    }
-	    }
-	    printf("incorrect records : %zd\n", incorrect);
-	    printf("total request key  count  = %zd\n", request_cnt);
-	    printf("total response kv  count = %zd\n", response_cnt);
-	    printf("read time: %f' seconds,ops: %f\n", total_us/1e6, 1e6*request_cnt/total_us);
+    loadKeys(filename, &keys);
+	// 执行测试, 随机读取, 允许重复读
+	printf("data loaded[size = %ld], start test...\n", keys.size());
+	struct timespec t0, t1;
+	std::vector<size_t>  indexVec;
+	std::string result;
+	size_t incorrect = 0;
+	size_t request_cnt = 0;
+	size_t response_cnt = 0;
+	size_t total_us = 0;
+	for (size_t i =0; i<= mget_amount; ++i){		
+		indexVec.clear();
+		for (size_t j=0;j <mget_size; ++j){			
+			int index = lrand48() % keys.size();
+			indexVec.push_back(index);				
+		}  	
+		//std::sort(indexVec.begin(), indexVec.end());
+		//indexVec.erase(std::unique(indexVec.begin(), indexVec.end()), indexVec.end());
+		//std::random_shuffle(indexVec.begin(), indexVec.end());
+		// 每100条记录或者结束的时候，进行一组get操作
+		clock_gettime(CLOCK_MONOTONIC, &t0);
+		request_cnt += indexVec.size();			
+		for (size_t index: indexVec) {
+			client->get(keys[index], result);
+			client->freeReply();
+			if (!result.empty()) {
+				response_cnt += 1;
+				printf("key: %s\n\tvalue: %s\n", keys[index].c_str(), result.c_str());
+			} else {	
+				incorrect +=1;
+			}
+			result.clear();
+		}
+		clock_gettime(CLOCK_MONOTONIC, &t1);
+		total_us += (t1.tv_sec - t0.tv_sec) * 1000000LL + (t1.tv_nsec - t0.tv_nsec) / 1000LL;  
+		//result.resize(0);
+		//response_cnt += result.size()/2;
+		if (i%1000 == 0){
+			printf("get records = %zd\r", request_cnt);
+			fflush(stdout);
+		}
+	}
+	printf("incorrect records : %zd\n", incorrect);
+	printf("total request key  count  = %zd\n", request_cnt);
+	printf("total response kv  count = %zd\n", response_cnt);
+	printf("read time: %f' seconds,ops: %f\n", total_us/1e6, 1e6*request_cnt/total_us);
 }
 // mget
 void test_multi_get(Client *client, const char* filename, int mget_amount, int mget_size) {
     std::cout<<"II---------> test multi get, data init..."<<std::endl;
-    // 数组分别存储key和value
-    std::vector<std::string> kv;
-    
-    // 逐行遍历原始文件以初始化数据
-    std::fstream infile(filename);
-    assert(infile);
-    std::string line;
-    size_t limit = size_t(-1);
-    if (const char* env = getenv("INPUT_LIMIT")) {
-        limit = atoi(env);
-    }
-	int nSpos = 0;
-    for (size_t i = 0; i < limit && std::getline(infile, line); ) {
-		nSpos = line.find('\t',nSpos);
-		kv.push_back("review/userId: "+line.substr(nSpos+1)+"product/productId: "+line.substr(0,nSpos));
-    }
-    std::sort(kv.begin(), kv.end(), [&](const auto& x, const auto& y) {
-        return x < y;
-    });
-    
+
+    std::vector<std::string> total_keys;
+	loadKeys(filename, &total_keys);
+
     // 执行测试, 随机读取, 允许重复读
-    printf("data loaded[size = %ld], start test...\n", kv.size());
+    printf("data loaded[size = %ld], start test...\n", total_keys.size());
     struct timespec t0, t1;
-    std::vector<std::string> key;
-    std::vector<size_t>  indexVec;
+    std::vector<size_t>  indexVec(total_keys.size());
+	for (int i = 0; i < total_keys.size(); i++) {
+		indexVec[i] = i;
+	}
+	std::random_shuffle(indexVec.begin(), indexVec.end()); 	
     size_t incorrect = 0;
     size_t request_cnt = 0;
     size_t response_cnt = 0;
     size_t total_us = 0;
+	std::vector<const char*> keys(mget_size);
     for (size_t i = 0; i <= mget_amount; ++i) {
-        indexVec.resize(0);
         for (size_t j = 0; j < mget_size; ++j) {
-            int index = lrand48() % kv.size();
-            indexVec.push_back(index);
+            int index = indexVec[request_cnt++ % total_keys.size()];
+			keys[j] = total_keys[index].data();
         }
-        std::sort(indexVec.begin(), indexVec.end());
-        indexVec.erase(std::unique(indexVec.begin(), indexVec.end()), indexVec.end());
-        std::random_shuffle(indexVec.begin(), indexVec.end()); 	
-	    key.clear();            
-        for (size_t index: indexVec) {
-            key.push_back(kv[index]);
-        }
-        request_cnt += indexVec.size();                          
-        
-        // 每100条记录或者结束的时候，进行一次mget操作
-        //result.resize(0);                  
         clock_gettime(CLOCK_MONOTONIC, &t0);
-        client->mget(key);                       
+        client->mget(keys);                       
         clock_gettime(CLOCK_MONOTONIC, &t1);
         total_us += (t1.tv_sec - t0.tv_sec) * 1000000LL + (t1.tv_nsec - t0.tv_nsec) / 1000LL;
         //  test output 
-	    for (int i =0; i < client->reply->elements; ++i){
-		    if(client->reply->element[i]->str != NULL){
+	    for (int i = 0; i < client->reply->elements; ++i) {
+		    if (client->reply->element[i]->str != NULL){
 			    response_cnt += 1;
-		    } 
-		    else{
+				//printf("key: %s\n\tvalue: %s\n", keys[0].c_str(), client->reply->element[0]->str);
+		    } else {
 			    incorrect += 1;
 		    } 
 	    }
         client->freeReply();
         //response_cnt += result.size()/2;
-        if(i%1000 == 0) {
+        if (i % 1000 == 0) {
             printf("get records = %zd\r", request_cnt);
             fflush(stdout);
         }
@@ -245,44 +221,45 @@ void test_multi_get(Client *client, const char* filename, int mget_amount, int m
 void test_multi_set(Client *client,const char* filename) {
     std::cout<<"II---------> test multi set, data init..."<<std::endl;
     // 数组分别存储key和value
-    std::vector<std::string> keys;
-    std::vector<std::string> values;
-    loadRawFile(filename, &keys, &values);
+    std::vector<std::string> total_keys;
+    std::vector<std::string> total_values;
+    loadRawFile(filename, &total_keys, &total_values);
     // 执行测试
     const long double time_start = time(0);
     
-    auto key_it = keys.begin();
-    auto val_it = values.begin();
+    auto key_it = total_keys.begin();
+    auto val_it = total_values.begin();
     
     int i = 0;
-    while (key_it != keys.end() && val_it != values.end()) {
-		std::vector<std::string> key;
-		std::vector<std::string> value;
-		key.push_back(*key_it);
-		value.push_back(*val_it);
+	std::vector<std::string> keys, values;
+    while (key_it != total_keys.end() && val_it != total_values.end()) {
+		keys.push_back(*key_it);
+		values.push_back(*val_it);
         ++key_it;
         ++val_it;
         ++i;
         
         // 每1000条记录或者结束的时候，进行一次set操作
-        if(i%1000 == 0 || (key_it == keys.end() && val_it == values.end()) ){
-			client->mset(key,value);
+        if (i % 1000 == 0 || 
+			key_it == keys.end() ||
+			val_it == values.end() ){
+			client->mset(keys, values);
 			client->freeReply();
-			client->mget(key);
-			std::cout<<value[0]<<"\n"<<client->reply->element[0]->str<<std::endl;
-			client->freeReply();
-			key.clear();
-			value.clear();
-        }
-        if(i%100000 == 0) {
+			//client->mget(key);
+			//std::cout<<value[0]<<"\n"<<client->reply->element[0]->str<<std::endl;
+			//client->freeReply();
+			keys.clear();
+			values.clear();
+		}
+        if (i % 100000 == 0) {
             printf("set records = %d \r", i);
             fflush(stdout);
         }
     }
     const long double time_end = time(0);
     printf("%Lf -> %Lf\n", time_start, time_end);
-    printf("total records = %ld\n", keys.size());
-    printf("read time : %Lf, ops : %Lf\n",(time_end - time_start), keys.size() / (time_end - time_start));
+    printf("total records = %ld\n", total_keys.size());
+    printf("read time : %Lf, ops : %Lf\n",(time_end - time_start), total_keys.size() / (time_end - time_start));
 }
 
 // DEL  
@@ -290,7 +267,7 @@ void test_delete(Client *client ,const char* filename, int del_amount) {
     printf("II---------> test delete...\n");
     // 数组分别存储key和value
     std::vector<std::string> keys;
-    loadShufFile(filename, &keys);
+    loadKeys(filename, &keys);
     printf("data loaded\n");
     
     printf("key size : %d\n", int(keys.size()));
@@ -324,7 +301,7 @@ void test_multi_expire(Client *client, const char* filename, int expire_amount) 
     // 数组分别存储key和value
     printf("II---------> test expire...\n");
     std::vector<std::string> keys;
-    loadShufFile(filename, &keys);
+    loadKeys(filename, &keys);
     printf("data loaded\n");
     
     printf("key size : %d\n", int(keys.size()));

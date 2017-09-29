@@ -27,6 +27,7 @@ public:
 	// GET
 	void get( const std::string &key,std::string &val);
 	// MGET
+	void mget( const std::vector<const char*> &key);
 	void mget( const std::vector<std::string> &key);
 	// MSET
 	void mset( const std::vector<std::string> &key, const std::vector<std::string> &val);

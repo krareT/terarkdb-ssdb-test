@@ -87,33 +87,59 @@ void Client::mset(const std::vector<std::string> &key, const std::vector<std::st
 		printf("Redis error");
 	}
 }
+
 // GET
-void Client::get( const std::string &key,std::string &val){
+void Client::get(const std::string &key,std::string &val) {
 	Client::reply = (redisReply *)redisCommand(Client::redis,"GET %s", key.c_str());
 	if(Client::isexist()){
 		val = Client::reply->str;
 	}
 };
+
 // MGET
-void Client::mget( const std::vector<std::string> &key){
-	std::vector<const char*> argv(key.size() + 1);
-	std::vector<size_t> argvlen(key.size() + 1);
+void Client::mget(const std::vector<const char*> &keys) {
+	std::vector<const char*> argv(keys.size() + 1);
+	std::vector<size_t> argvlen(keys.size() + 1);
 	int j = 0;
 	static char msetcmd[] = "MGET";
 	argv[j] = msetcmd;
 	argvlen[j] = sizeof(msetcmd)-1;
 	++j;
 
-	for (int i=0;i<key.size();++i){
-		argvlen[j] = key[i].length();
-		argv[j] = new char[argvlen[j]];
-		memset((void*)argv[j],0,argvlen[j]);
-		memcpy((void*)argv[j],key[i].data(),key[i].length());
+	for (int i = 0; i < keys.size(); ++i) {
+		argvlen[j] = strlen(keys[i]);
+		argv[j] = keys[i];
+		//argv[j] = new char[argvlen[j]];
+		//memset((void*)argv[j],0,argvlen[j]);
+		//memcpy((void*)argv[j], keys[i].data(), keys[i].length());
 		++j;
 	}
 	//std::cout<<"mget"<<std::endl;
 	Client::reply = (redisReply *)redisCommandArgv(Client::redis, argv.size(), &(argv[0]), &(argvlen[0]));
-	if (!reply){
+	if (!reply) {
+		printf("Redis error");
+	}
+};
+
+void Client::mget(const std::vector<std::string> &keys) {
+	std::vector<const char*> argv(keys.size() + 1);
+	std::vector<size_t> argvlen(keys.size() + 1);
+	int j = 0;
+	static char msetcmd[] = "MGET";
+	argv[j] = msetcmd;
+	argvlen[j] = sizeof(msetcmd)-1;
+	++j;
+
+	for (int i = 0; i < keys.size(); ++i) {
+		argvlen[j] = keys[i].length();
+		argv[j] = new char[argvlen[j]];
+		memset((void*)argv[j],0,argvlen[j]);
+		memcpy((void*)argv[j], keys[i].data(), keys[i].length());
+		++j;
+	}
+	//std::cout<<"mget"<<std::endl;
+	Client::reply = (redisReply *)redisCommandArgv(Client::redis, argv.size(), &(argv[0]), &(argvlen[0]));
+	if (!reply) {
 		printf("Redis error");
 	}
 };

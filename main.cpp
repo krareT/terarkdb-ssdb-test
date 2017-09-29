@@ -23,8 +23,10 @@ int main(int argc, const char** argv) {
 
     const char *ip = "127.0.0.1";
     int port = 9221;
-    int mget_amount = 70000;
+    int mget_amount = 10000;
     int mget_size = 100;
+	//int mget_amount = 30;
+    //int mget_size = 1;
     int del_amount = 7000000;
     int expire_amount = 7000000;
 
