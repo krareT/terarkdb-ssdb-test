@@ -1,8 +1,11 @@
+
 #include <algorithm>
+#include <atomic>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <string>
+#include <thread>
 #include <cstring>
 #include <map>
 #include <ctime>
@@ -50,6 +53,101 @@ bool Review::validOrErase() {
     return false;
 }
 
+void loadKeys(const char* filename, std::vector<std::string>* keys);
+
+struct PerfDataSet {
+	// connect info
+	const char* ip;
+	int port;
+	// data set
+	std::vector<std::string> total_keys;
+	std::vector<size_t> indexes;
+	int mget_amount;
+	int mget_size;
+	// stats
+	std::atomic<int> req_fails;
+};
+void test_mget_unit(PerfDataSet& dataset);
+
+void PrepareSrcData(const char* filename, PerfDataSet& dataset) {
+	loadKeys(filename, &dataset.total_keys);
+	printf("data loaded[size = %ld], start test...\n", dataset.total_keys.size());
+	for (int i = 0; i < dataset.total_keys.size(); i++) {
+		dataset.indexes[i] = i;
+	}
+	std::random_shuffle(dataset.indexes.begin(), dataset.indexes.end()); 	
+}
+
+// mget
+void test_mget_mthread(const char* ip, int port, 
+					   const char *filename, 
+					   int thcnt, int mget_amount, int mget_size) {
+	PerfDataSet dataset;
+	PrepareSrcData(filename, dataset);
+	dataset.ip = ip, dataset.port = port;
+	dataset.mget_amount /= thcnt, dataset.mget_size = mget_size;
+
+	struct timespec t0, t1;
+	clock_gettime(CLOCK_MONOTONIC, &t0);
+	std::vector<std::thread> tharr;
+	for (int i = 0; i < thcnt; i++) {
+		tharr.push_back(std::thread(test_mget_unit, std::ref(dataset)));
+	}
+	for (auto& th : tharr) {
+		th.join();
+	}
+	clock_gettime(CLOCK_MONOTONIC, &t1);
+	size_t total_us = (t1.tv_sec - t0.tv_sec) * 1000000LL + (t1.tv_nsec - t0.tv_nsec) / 1000LL;
+	printf("incorrect records : %d\n", dataset.req_fails.load());
+    printf("total request  keys count = %zd\n", dataset.mget_amount * thcnt);
+    printf("read time : %f'seconds, ops : %f\n", total_us / 1e6, 
+		   1e6 * dataset.mget_amount * thcnt / total_us);
+}
+
+void test_mget_unit(PerfDataSet& dataset) {
+	Client *client = new Client();				
+	client->connect(dataset.ip, dataset.port);
+	if(!client->isok()){
+		printf("Connect to pikaServer Faile!\n");
+		delete client;
+		exit(-1);
+	}
+	std::cout<<"Connect to pikaServer Success!" << std::endl;
+    //std::cout<<"II---------> test multi get, data init..."<<std::endl;
+
+    std::vector<std::string>& total_keys = dataset.total_keys;
+	std::vector<size_t>& indexes = dataset.indexes;
+	std::vector<const char*> keys(dataset.mget_size);
+    for (size_t i = 0; i <= dataset.mget_amount; ++i) {
+		int j = lrand48() % total_keys.size();
+		j = std::min<int>(j, total_keys.size() - dataset.mget_size);
+		for (;j < dataset.mget_size; ++j) {
+			keys[j] = total_keys[indexes[j]].data();
+        }
+        client->mget(keys);                       
+        //  test output 
+	    for (int i = 0; i < client->reply->elements; ++i) {
+		    if (client->reply->element[i]->str != NULL){
+			    //response_cnt += 1;
+				//printf("key: %s\n\tvalue: %s\n", keys[0].c_str(), client->reply->element[0]->str);
+		    } else {
+			    //incorrect += 1;
+				dataset.req_fails++;
+		    } 
+	    }
+        client->freeReply();
+        //response_cnt += result.size()/2;
+        if (i % 1000 == 0) {
+            //printf("get records = %zd\r", request_cnt);
+            //fflush(stdout);
+        }
+    }
+    //printf("incorrect records : %zd\n", incorrect);
+    //printf("total request  keys count = %zd\n", request_cnt);
+    //printf("total response kv   count = %zd\n", response_cnt);
+    //printf("read time : %f'seconds, ops : %f\n",total_us/1e6, 1e6*request_cnt / total_us);
+}
+
 // 读取shuff文件，只包含key
 void loadKeys(const char* filename, std::vector<std::string>* keys) {
     // 逐行遍历原始文件
@@ -62,6 +160,7 @@ void loadKeys(const char* filename, std::vector<std::string>* keys) {
 		keys->push_back("review/userId: "+line.substr(nSpos+1)+"product/productId: "+line.substr(0,nSpos));
     }
 }
+
 // 把原始文件读成key和value的组合
 void loadRawFile(const char* filename, std::vector<std::string>* keys, std::vector<std::string>* values) {
     // 逐行遍历原始文件
@@ -146,7 +245,7 @@ void test_get(Client *client,const char *filename, int mget_amount, int mget_siz
 			client->freeReply();
 			if (!result.empty()) {
 				response_cnt += 1;
-				printf("key: %s\n\tvalue: %s\n", keys[index].c_str(), result.c_str());
+				//printf("key: %s\n\tvalue: %s\n", keys[index].c_str(), result.c_str());
 			} else {	
 				incorrect +=1;
 			}
@@ -174,7 +273,8 @@ void test_multi_get(Client *client, const char* filename, int mget_amount, int m
 	loadKeys(filename, &total_keys);
 
     // 执行测试, 随机读取, 允许重复读
-    printf("data loaded[size = %ld], start test...\n", total_keys.size());
+    printf("data loaded [size = %ld], get_size %d, start test...\n", 
+		   total_keys.size(), mget_size);
     struct timespec t0, t1;
     std::vector<size_t>  indexVec(total_keys.size());
 	for (int i = 0; i < total_keys.size(); i++) {
@@ -201,6 +301,7 @@ void test_multi_get(Client *client, const char* filename, int mget_amount, int m
 			    response_cnt += 1;
 				//printf("key: %s\n\tvalue: %s\n", keys[0].c_str(), client->reply->element[0]->str);
 		    } else {
+				printf("empty at key: %s\n", keys[i]);
 			    incorrect += 1;
 		    } 
 	    }
@@ -240,7 +341,7 @@ void test_multi_set(Client *client,const char* filename) {
         ++i;
         
         // 每1000条记录或者结束的时候，进行一次set操作
-        if (i % 1000 == 0 || 
+        if (i % 100 == 0 || 
 			key_it == keys.end() ||
 			val_it == values.end() ){
 			client->mset(keys, values);
@@ -251,7 +352,7 @@ void test_multi_set(Client *client,const char* filename) {
 			keys.clear();
 			values.clear();
 		}
-        if (i % 100000 == 0) {
+        if (i % 10000 == 0) {
             printf("set records = %d \r", i);
             fflush(stdout);
         }
@@ -363,3 +464,7 @@ void test_status(Client *client) {
 	std::cout<<client->reply->element[1]->str<<std::endl;
 
 }
+
+
+
+
