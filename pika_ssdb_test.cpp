@@ -65,13 +65,14 @@ struct PerfDataSet {
 	int mget_amount;
 	int mget_size;
 	// stats
-	std::atomic<int> req_fails;
+	std::atomic<int> req_fails = { 0 };
 };
 void test_mget_unit(PerfDataSet& dataset);
 
 void PrepareSrcData(const char* filename, PerfDataSet& dataset) {
 	loadKeys(filename, &dataset.total_keys);
 	printf("data loaded[size = %ld], start test...\n", dataset.total_keys.size());
+	dataset.indexes.resize(dataset.total_keys.size());
 	for (int i = 0; i < dataset.total_keys.size(); i++) {
 		dataset.indexes[i] = i;
 	}
@@ -85,7 +86,7 @@ void test_mget_mthread(const char* ip, int port,
 	PerfDataSet dataset;
 	PrepareSrcData(filename, dataset);
 	dataset.ip = ip, dataset.port = port;
-	dataset.mget_amount /= thcnt, dataset.mget_size = mget_size;
+	dataset.mget_amount = mget_amount / thcnt, dataset.mget_size = mget_size;
 
 	struct timespec t0, t1;
 	clock_gettime(CLOCK_MONOTONIC, &t0);
@@ -99,21 +100,21 @@ void test_mget_mthread(const char* ip, int port,
 	clock_gettime(CLOCK_MONOTONIC, &t1);
 	size_t total_us = (t1.tv_sec - t0.tv_sec) * 1000000LL + (t1.tv_nsec - t0.tv_nsec) / 1000LL;
 	printf("incorrect records : %d\n", dataset.req_fails.load());
-    printf("total request  keys count = %zd\n", dataset.mget_amount * thcnt);
+    printf("total request keys count = %zd\n", mget_amount * mget_size);
     printf("read time : %f'seconds, ops : %f\n", total_us / 1e6, 
-		   1e6 * dataset.mget_amount * thcnt / total_us);
+		   1e6 * mget_amount / total_us);
 }
 
 void test_mget_unit(PerfDataSet& dataset) {
 	Client *client = new Client();				
 	client->connect(dataset.ip, dataset.port);
-	if(!client->isok()){
+	if (!client->isok()) {
 		printf("Connect to pikaServer Faile!\n");
 		delete client;
 		exit(-1);
 	}
-	std::cout<<"Connect to pikaServer Success!" << std::endl;
-    //std::cout<<"II---------> test multi get, data init..."<<std::endl;
+	//std::cout << "Connect to pikaServer Success!" << std::endl;
+    //std::cout << "II---------> test multi get, data init..." << std::endl;
 
     std::vector<std::string>& total_keys = dataset.total_keys;
 	std::vector<size_t>& indexes = dataset.indexes;
@@ -121,32 +122,35 @@ void test_mget_unit(PerfDataSet& dataset) {
     for (size_t i = 0; i <= dataset.mget_amount; ++i) {
 		int j = lrand48() % total_keys.size();
 		j = std::min<int>(j, total_keys.size() - dataset.mget_size);
-		for (;j < dataset.mget_size; ++j) {
-			keys[j] = total_keys[indexes[j]].data();
+		//printf("j %d\n", j);
+		for (int ki = 0; ki < dataset.mget_size; ki++, j++) {
+			keys[ki] = total_keys[indexes[j]].data();
         }
         client->mget(keys);                       
         //  test output 
 	    for (int i = 0; i < client->reply->elements; ++i) {
 		    if (client->reply->element[i]->str != NULL){
 			    //response_cnt += 1;
-				//printf("key: %s\n\tvalue: %s\n", keys[0].c_str(), client->reply->element[0]->str);
+				//printf("key: %s\n\tvalue: %s\n", keys[i], client->reply->element[i]->str);
 		    } else {
 			    //incorrect += 1;
 				dataset.req_fails++;
+				printf("empty at key: %s\n", keys[i]);
+				fflush(stdout);
 		    } 
 	    }
         client->freeReply();
         //response_cnt += result.size()/2;
-        if (i % 1000 == 0) {
-            //printf("get records = %zd\r", request_cnt);
+        if (i % 10000 == 0) {
+            printf("get records = %zd\r", i);
             //fflush(stdout);
         }
     }
-    //printf("incorrect records : %zd\n", incorrect);
-    //printf("total request  keys count = %zd\n", request_cnt);
-    //printf("total response kv   count = %zd\n", response_cnt);
-    //printf("read time : %f'seconds, ops : %f\n",total_us/1e6, 1e6*request_cnt / total_us);
+	delete client;
+	//printf("unit work done\n");
 }
+
+
 
 // 读取shuff文件，只包含key
 void loadKeys(const char* filename, std::vector<std::string>* keys) {
@@ -169,15 +173,15 @@ void loadRawFile(const char* filename, std::vector<std::string>* keys, std::vect
     std::ifstream infile(filename);
     assert(infile);
     std::string line;
-    while(std::getline(infile, line)) {
-        if( (int)line.find("product/productId:", 0) > -1) {
+    while (std::getline(infile, line)) {
+        if ( (int)line.find("product/productId:", 0) > -1) {
             review->productId = line;
-        }else if( (int)line.find("review/userId:", 0) > -1) {
+        } else if ( (int)line.find("review/userId:", 0) > -1) {
             review->userId = line;
-        }else if( (int)line.find("review/text:", 0) > -1) {
+        } else if ( (int)line.find("review/text:", 0) > -1) {
             review->review = line;
             // 到最末尾验证一下记录是否填满
-            if(review->validOrErase()) {
+            if (review->validOrErase()) {
                 keys->push_back(review->userId.append(review->productId));
                 values->push_back(review->review);
             }
@@ -342,13 +346,25 @@ void test_multi_set(Client *client,const char* filename) {
         
         // 每1000条记录或者结束的时候，进行一次set操作
         if (i % 100 == 0 || 
-			key_it == keys.end() ||
-			val_it == values.end() ){
+			key_it == total_keys.end() ||
+			val_it == total_values.end() ){
 			client->mset(keys, values);
 			client->freeReply();
-			//client->mget(key);
-			//std::cout<<value[0]<<"\n"<<client->reply->element[0]->str<<std::endl;
-			//client->freeReply();
+			{
+				// double check
+				client->mget(keys);
+				for (int i = 0; i < client->reply->elements; ++i) {
+					if (client->reply->element[i]->str != NULL){
+						//printf("key: %s\n\tvalue: %s\n", keys[i].c_str(), client->reply->element[i]->str);
+						//printf("insert key: %s\n", keys[i].c_str());
+					} else {
+						printf("empty at key: %s\n", keys[i]);
+						exit(-1);
+						//incorrect += 1;
+					}
+				}
+				client->freeReply();
+			}
 			keys.clear();
 			values.clear();
 		}

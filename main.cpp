@@ -23,8 +23,9 @@ int main(int argc, const char** argv) {
 
     const char *ip = "127.0.0.1";
     int port = 9221;
-    int mget_amount = 1000;
-    int mget_size = 10;
+    int mget_amount = 100000;
+    int mget_size = 100;
+	int th_cnt = 10;
 	//int mget_amount = 30;
     //int mget_size = 1;
     int del_amount = 7000000;
@@ -68,7 +69,9 @@ int main(int argc, const char** argv) {
 	}
     if(strcmp(command,"mget")==0){
 		//test for mget
-		test_multi_get(client,filepath,mget_amount,mget_size);   
+		//test_multi_get(client,filepath,mget_amount,mget_size);   
+		test_mget_mthread(ip, port, filepath, 
+						  th_cnt, mget_amount, mget_size);
 	}
     if(strcmp(command,"delete")==0){
 		//test for delete
